@@ -17,7 +17,7 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.LongField;
+import org.apache.lucene.document.IntField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
@@ -33,59 +33,64 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.Version;
 
 public class LuceneSearchApp {
 	
+	private Directory directory;
+	private Analyzer analyzer;
+	
+	private final int TASK_NUMBER = 19;
+	private final String[] queries = {
+			"power sensor saving energy",
+			"\"fuel consumption\" reduction sensor",
+			"\"reducing energy consumption\" sensor",
+			"(\"through sensors\") and (\"energy consumption\" or \"save energy\")"
+	};
+	
 	public LuceneSearchApp() {
-
+		directory = new RAMDirectory();
+		analyzer = new StandardAnalyzer(Version.LUCENE_42);
 	}
 	
 	public void index(List<DocumentInCollection> docs) throws IOException {
-
-		// implement the Lucene indexing here
-		//Creating the index file
-		IndexWriter writer = null;
-		try{
-			
-            Directory dir = FSDirectory.open(new File("index"));
-
-            Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_42);
-            
-            IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_42, analyzer);
-            
-            //make sure the old file is overwritten
-            iwc.setOpenMode(OpenMode.CREATE);
-            
-            
-            writer = new IndexWriter(dir, iwc);
-            
-		}catch (Exception e) {
-            System.out.println("Couldnt open the index.. "+e);
-        }
 		
-		//index the rssfeed list
-		//loop the list of rssfeeddocs, add all fields to document
-		for (final DocumentInCollection entry : docs){
-			/*Document doc = new Document();
-		    doc.add(new Field("title", entry.getTitle(), TextField.TYPE_STORED));
-		    doc.add(new Field("description", entry.getDescription(), TextField.TYPE_STORED));
-		    doc.add(new LongField("pubdate", entry.getPubDate().getTime(), Field.Store.YES));
-		    writer.addDocument(doc);
-		    */
-		}
-		writer.close();
+		// Store the index in memory:
+		try{
+			IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_CURRENT, analyzer);
+		    IndexWriter writer = new IndexWriter(directory, config);
+		    
+			// loop the list, add all fields to document
+			for (final DocumentInCollection entry : docs) {
+				Document doc = new Document();
+			    doc.add(new Field("title", entry.getTitle(), TextField.TYPE_STORED));
+			    doc.add(new Field("abstract", entry.getAbstractText(), TextField.TYPE_STORED));
+			    doc.add(new Field("query", entry.getQuery(), TextField.TYPE_STORED));
+			    doc.add(new IntField("tasknumber", entry.getSearchTaskNumber(), IntField.TYPE_STORED));
+			    doc.add(new IntField("relevance", (entry.isRelevant() ? 1 : 0), IntField.TYPE_STORED));
+			    writer.addDocument(doc);
+			}
+			writer.close();    
+
+		} catch (Exception e) {
+            System.out.println("Couldn't create the index: " +e);
+        }
 	}
 	
+	/**
+	 * Search the index
+	 * @return list of results
+	 * @throws IOException
+	 */
 	public List<String> search() throws IOException{
 		
-		
-
 		List<String> results = new LinkedList<String>();
 
-		/*printQuery(inTitle, notInTitle, inDescription, notInDescription, startDate, endDate);
+		//printQuery(inTitle, notInTitle, inDescription, notInDescription, startDate, endDate);
 		
 		// implement the Lucene search here
+		/*
 		Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_42);
 		DirectoryReader ireader = DirectoryReader.open(FSDirectory.open(new File("index")));
 		IndexSearcher searcher = new IndexSearcher(ireader);
@@ -179,7 +184,8 @@ public class LuceneSearchApp {
 		for (int i = 0; i < hits.length; i++){
 			Document hitdoc = searcher.doc(hits[i].doc);
 			results.add(hitdoc.get("title"));
-		}*/
+		}
+		*/
 		return results;
 	}
 	
@@ -234,55 +240,9 @@ public class LuceneSearchApp {
 			List<DocumentInCollection> docs = parser.getDocuments();
 			engine.index(docs);
 
-			List<String> inTitle;
-			List<String> notInTitle;
-			List<String> inDescription;
-			List<String> notInDescription;
-			List<String> results;
+			// TODO Create searchers
 			
-			// 1) search documents with words "kim" and "korea" in the title
-			inTitle = new LinkedList<String>();
-			inTitle.add("kim");
-			inTitle.add("korea");
-			//results = engine.search(inTitle, null, null, null, null, null);
-			//engine.printResults(results);
-			
-			// 2) search documents with word "kim" in the title and no word "korea" in the description
-			inTitle = new LinkedList<String>();
-			notInDescription = new LinkedList<String>();
-			inTitle.add("kim");
-			notInDescription.add("korea");
-			//results = engine.search(inTitle, null, null, notInDescription, null, null);
-			//engine.printResults(results);
-
-			// 3) search documents with word "us" in the title, no word "dawn" in the title and word "" and "" in the description
-			inTitle = new LinkedList<String>();
-			inTitle.add("us");
-			notInTitle = new LinkedList<String>();
-			notInTitle.add("dawn");
-			inDescription = new LinkedList<String>();
-			inDescription.add("american");
-			inDescription.add("confession");
-			//results = engine.search(inTitle, notInTitle, inDescription, null, null, null);
-			//engine.printResults(results);
-			
-			// 4) search documents whose publication date is 2011-12-18
-			//results = engine.search(null, null, null, null, "2011-12-18", "2011-12-18");
-			//engine.printResults(results);
-			
-			// 5) search documents with word "video" in the title whose publication date is 2000-01-01 or later
-			inTitle = new LinkedList<String>();
-			inTitle.add("video");
-			//results = engine.search(inTitle, null, null, null, "2000-01-01", null);
-			//engine.printResults(results);
-			
-			// 6) search documents with no word "canada" or "iraq" or "israel" in the description whose publication date is 2011-12-18 or earlier
-			notInDescription = new LinkedList<String>();
-			notInDescription.add("canada");
-			notInDescription.add("iraq");
-			notInDescription.add("israel");
-			//results = engine.search(null, null, null, notInDescription, null, "2011-12-18");
-			//engine.printResults(results);
+			engine.search();
 		}
 		else
 			System.out.println("ERROR: the path of a RSS Feed file has to be passed as a command line argument.");
