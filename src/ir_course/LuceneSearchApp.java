@@ -22,6 +22,7 @@ import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -30,7 +31,10 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.BooleanClause.Occur;
+import org.apache.lucene.search.similarities.BM25Similarity;
+import org.apache.lucene.search.similarities.DefaultSimilarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.RAMDirectory;
@@ -58,7 +62,7 @@ public class LuceneSearchApp {
 		
 		// Store the index in memory:
 		try{
-			IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_CURRENT, analyzer);
+			IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_42, analyzer);
 		    IndexWriter writer = new IndexWriter(directory, config);
 		    
 			// loop the list, add all fields to document
@@ -85,107 +89,18 @@ public class LuceneSearchApp {
 	 */
 	public List<String> search() throws IOException{
 		
-		List<String> results = new LinkedList<String>();
-
-		//printQuery(inTitle, notInTitle, inDescription, notInDescription, startDate, endDate);
-		
-		// implement the Lucene search here
-		/*
-		Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_42);
-		DirectoryReader ireader = DirectoryReader.open(FSDirectory.open(new File("index")));
-		IndexSearcher searcher = new IndexSearcher(ireader);
-		
-		BooleanQuery bq = new BooleanQuery();
-		QueryParser qparser = new QueryParser(Version.LUCENE_42, "title", analyzer);
-		if (inTitle != null){
-			for (final String title : inTitle){
-				Query query = null;
-				try {
-					query = qparser.parse(title);
-					bq.add(query, Occur.MUST);
-				} catch (ParseException e) {
-					e.printStackTrace();
-				}
-				
-			}
+		List<String> results = new LinkedList<String>();		
+	    DirectoryReader ireader;
+	    
+		try {
+			ireader = DirectoryReader.open(directory);
+		    IndexSearcher vsm = new Searcher(ireader, new DefaultSimilarity());
+			IndexSearcher bm25 = new Searcher(ireader, new BM25Similarity());
+		    ireader.close();
 		}
-		if (notInTitle != null){
-			for (final String title : notInTitle){
-				Query query = null;
-				try {
-					query = qparser.parse(title);
-					bq.add(query, Occur.MUST_NOT);
-				} catch (ParseException e) {
-					e.printStackTrace();
-				}
-				
-			}
+		catch (Exception e) {
+			e.printStackTrace();
 		}
-		qparser = new QueryParser(Version.LUCENE_42, "description", analyzer);
-		if (inDescription != null){
-			for (final String desc : inDescription){
-				Query query = null;
-				try {
-					query = qparser.parse(desc);
-					bq.add(query, Occur.MUST);
-				} catch (ParseException e) {
-					e.printStackTrace();
-				}
-				
-			}
-		}
-		if (notInDescription != null){
-			for (final String desc : notInDescription){
-				Query query = null;
-				try {
-					query = qparser.parse(desc);
-					bq.add(query, Occur.MUST_NOT);
-				} catch (ParseException e) {
-					e.printStackTrace();
-				}
-				
-			}
-		}
-		if (startDate!=null || endDate!=null){
-			long min=0;
-			long max=0;
-			if (startDate == null){
-				min = 0;
-			}else{
-				startDate += " 00:00";
-				SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd HH:mm");
-				try {
-					Date d = f.parse(startDate);
-					min = d.getTime();
-				} catch (java.text.ParseException e) {
-					e.printStackTrace();
-				}
-			}
-			if (endDate == null){
-				max = 0;
-			}else{
-				endDate += " 23:59";
-				SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd HH:mm");
-				try {
-					Date d = f.parse(endDate);
-					max = d.getTime();
-				} catch (java.text.ParseException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-			Query query=null;
-			if (min!=0 && max != 0){query = NumericRangeQuery.newLongRange("pubdate", min, max, true, true);}
-			else if (min == 0 && max != 0){query = NumericRangeQuery.newLongRange("pubdate", null, max, true, true);}
-			else if (min != 0 && max == 0){query = NumericRangeQuery.newLongRange("pubdate", min, null, true, true);}
-			bq.add(query, Occur.MUST);
-		}
-		ScoreDoc[] hits = searcher.search(bq, null, 1000).scoreDocs;
-		for (int i = 0; i < hits.length; i++){
-			Document hitdoc = searcher.doc(hits[i].doc);
-			results.add(hitdoc.get("title"));
-		}
-		*/
 		return results;
 	}
 	
@@ -239,9 +154,6 @@ public class LuceneSearchApp {
 			parser.parse(args[0]);
 			List<DocumentInCollection> docs = parser.getDocuments();
 			engine.index(docs);
-
-			// TODO Create searchers
-			
 			engine.search();
 		}
 		else
