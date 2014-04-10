@@ -100,9 +100,9 @@ public class LuceneSearchApp {
 	public static void main(String[] args) throws IOException {
 		if (args.length > 0) {
 			LuceneSearchApp engine = new LuceneSearchApp();		
-			DocumentCollectionParser parser = new DocumentCollectionParser();
-			parser.parse(args[0]);
-			List<DocumentInCollection> docs = parser.getDocuments();
+			DocumentCollectionParser docParser = new DocumentCollectionParser();
+			docParser.parse(args[0]);
+			List<DocumentInCollection> docs = docParser.getDocuments();
 			engine.index(docs);
 			engine.search();
 		}
